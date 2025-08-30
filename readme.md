@@ -2,8 +2,7 @@
 
 *Don't Panic - Your digital towel is ready.*
 
-Douglas is a command-line tool for creating and running chainable, AI-first applications called "Galaxies." Following a
-Hitchhiker's Guide to the Galaxy theme, Douglas makes it easy to build and chain AI-powered workflows using your own
+Douglas makes it easy to build and chain AI-powered workflows using your own
 OpenAI API key.
 
 ## 🚀 Quick Start
