@@ -4,14 +4,34 @@
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-# Create a symlink to make douglas globally accessible
-# We'll put it in /usr/local/bin (which should be in your PATH)
-INSTALL_DIR="/usr/local/bin"
-DOUGLAS_SCRIPT="$SCRIPT_DIR/douglas.py"
+echo "🌌 Setting up Douglas..."
 
-echo "Installing Douglas..."
-echo "Script location: $DOUGLAS_SCRIPT"
-echo "Installing to: $INSTALL_DIR/douglas"
+# Create virtual environment if it doesn't exist
+if [ ! -d "$SCRIPT_DIR/.venv" ]; then
+    echo "📦 Creating virtual environment..."
+    python3 -m venv "$SCRIPT_DIR/.venv"
+fi
+
+# Activate virtual environment and install dependencies
+echo "📥 Installing dependencies..."
+source "$SCRIPT_DIR/.venv/bin/activate"
+pip install -r "$SCRIPT_DIR/requirements.txt"
+
+# Create a wrapper script that activates the venv
+WRAPPER_SCRIPT="$SCRIPT_DIR/douglas_wrapper.sh"
+cat > "$WRAPPER_SCRIPT" << EOF
+#!/bin/bash
+# Douglas wrapper script - activates venv and runs douglas.py
+DOUGLAS_DIR="$SCRIPT_DIR"
+source "\$DOUGLAS_DIR/.venv/bin/activate"
+python3 "\$DOUGLAS_DIR/douglas.py" "\$@"
+EOF
+
+chmod +x "$WRAPPER_SCRIPT"
+
+# Create symlink to the wrapper script
+INSTALL_DIR="/usr/local/bin"
+echo "🔗 Creating global command..."
 
 # Check if /usr/local/bin exists, create if it doesn't
 if [ ! -d "$INSTALL_DIR" ]; then
@@ -25,14 +45,10 @@ if [ -L "$INSTALL_DIR/douglas" ]; then
     sudo rm "$INSTALL_DIR/douglas"
 fi
 
-# Create the symlink
-echo "Creating symlink..."
-sudo ln -s "$DOUGLAS_SCRIPT" "$INSTALL_DIR/douglas"
+# Create the symlink to the wrapper
+sudo ln -s "$WRAPPER_SCRIPT" "$INSTALL_DIR/douglas"
 
-# Make sure the script is executable
-chmod +x "$DOUGLAS_SCRIPT"
-
-echo "Installation complete!"
-echo "You can now run 'douglas' from anywhere in your terminal."
+echo "✅ Douglas installation complete!"
+echo "🚀 You can now run 'douglas' from anywhere in your terminal."
 echo ""
-echo "To uninstall, run: sudo rm $INSTALL_DIR/douglas"
+echo "To uninstall: sudo rm $INSTALL_DIR/douglas"
