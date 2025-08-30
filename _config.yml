@@ -1,6 +1,8 @@
 # Site settings
 title: Douglas
-description: An AI-First App Runner & Builder. Don't Panic - Your digital towel is ready. Build chainable AI workflows called "Galaxies" with OpenAI integration.
+description: Chainable AI App Runner & Builder. Don't Panic - Your digital towel is ready.
+
+# Jekyll theme - perfect for your retro terminal aesthetic
 theme: jekyll-theme-hacker
 
 # GitHub Pages configuration
@@ -13,25 +15,4 @@ markdown: kramdown
 # Plugins
 plugins:
   - jekyll-feed
-  - jektml-sitemap
-
-# Additional settings
-author: Ankur Taxali
-github_username: @oldmill1
-
-# Collections (for potential galaxy showcase)
-collections:
-  galaxies:
-    output: true
-    permalink: /:collection/:name/
-
-# Navigation (if you want a menu)
-navigation:
-  - title: Home
-    url: /
-  - title: Galaxies
-    url: /galaxies/
-  - title: Documentation
-    url: /docs/
-  - title: GitHub
-    url: https://github.com/oldmill1/douglas
+  - jekyll-sitemap
