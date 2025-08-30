@@ -71,9 +71,11 @@ def load_galaxy(galaxy_name):
         return None
 
 
-def run_galaxy(galaxy_name):
+def run_galaxy(galaxy_name, galaxy_args=""):
     """Execute a Galaxy"""
     print(f"🚀 Launching Galaxy: {galaxy_name}")
+    if galaxy_args:
+        print(f"📨 Input: {galaxy_args}")
 
     galaxy_config = load_galaxy(galaxy_name)
     if not galaxy_config:
@@ -84,7 +86,7 @@ def run_galaxy(galaxy_name):
     if 'description' in galaxy_config:
         print(f"📝 {galaxy_config['description']}")
 
-    # Execute the action
+    # Execute the action (for simple galaxies like hello-world)
     if 'action' in galaxy_config:
         try:
             result = subprocess.run(
@@ -101,8 +103,14 @@ def run_galaxy(galaxy_name):
 
         except Exception as e:
             print(f"❌ Error executing galaxy: {e}")
+
+    # For LLM-based galaxies (like food-logger)
+    elif 'llm' in galaxy_config:
+        print("🤖 LLM-based galaxy detected (not implemented yet)")
+        print(f"📋 Would process: {galaxy_args}")
+
     else:
-        print("❌ No action defined in galaxy")
+        print("❌ No action or LLM configuration found in galaxy")
 
 
 def handle_command(command):
