@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""
+Douglas - An AI-First App Runner & Builder
+"""
+import sys
+import signal
+import os
+import yaml
+import subprocess
+from pathlib import Path
+
+
+def signal_handler(sig, frame):
+    """Handle Ctrl+C gracefully"""
+    print("\n🌌 Douglas signing off. Don't panic!")
+    sys.exit(0)
+
+
+def get_douglas_root():
+    """Get the root directory where Douglas is installed"""
+    # Get the directory where this script is located
+    return Path(__file__).parent
+
+
+def list_galaxies():
+    """List all available Galaxy YAML files"""
+    douglas_root = get_douglas_root()
+    apps_dir = douglas_root / "apps"
+
+    if not apps_dir.exists():
+        print(f"📁 Apps directory not found: {apps_dir}")
+        return []
+
+    galaxy_files = list(apps_dir.glob("*.yaml"))
+    return [f.stem for f in galaxy_files]  # Return without .yaml extension
+
+
+def load_galaxy(galaxy_name):
+    """Load and parse a Galaxy YAML file"""
+    douglas_root = get_douglas_root()
+    galaxy_path = douglas_root / "apps" / f"{galaxy_name}.yaml"
+
+    if not galaxy_path.exists():
+        return None
+
+    try:
+        with open(galaxy_path, 'r') as f:
+            return yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        print(f"❌ Error parsing {galaxy_name}.yaml: {e}")
+        return None
+
+
+def run_galaxy(galaxy_name):
+    """Execute a Galaxy"""
+    print(f"🚀 Launching Galaxy: {galaxy_name}")
+
+    galaxy_config = load_galaxy(galaxy_name)
+    if not galaxy_config:
+        print(f"❌ Galaxy '{galaxy_name}' not found or invalid")
+        return
+
+    # Display galaxy info
+    if 'description' in galaxy_config:
+        print(f"📝 {galaxy_config['description']}")
+
+    # Execute the action
+    if 'action' in galaxy_config:
+        try:
+            result = subprocess.run(
+                galaxy_config['action'],
+                shell=True,
+                capture_output=True,
+                text=True
+            )
+
+            if result.stdout:
+                print(result.stdout.strip())
+            if result.stderr:
+                print(f"⚠️  {result.stderr.strip()}")
+
+        except Exception as e:
+            print(f"❌ Error executing galaxy: {e}")
+    else:
+        print("❌ No action defined in galaxy")
+
+
+def handle_command(command):
+    """Process a Douglas command"""
+    parts = command.strip().split()
+    if not parts:
+        return
+
+    cmd = parts[0].lower()
+
+    if cmd == "run":
+        if len(parts) < 2:
+            print("❌ Usage: run <galaxy-name>")
+            return
+        galaxy_name = parts[1]
+        run_galaxy(galaxy_name)
+
+    elif cmd == "list" or cmd == "ls":
+        galaxies = list_galaxies()
+        if galaxies:
+            print("🌌 Available Galaxies:")
+            for galaxy in sorted(galaxies):
+                print(f"  • {galaxy}")
+        else:
+            print("📭 No galaxies found in apps/ directory")
+
+    elif cmd == "help":
+        print("🤖 Douglas Commands:")
+        print("  run <galaxy>  - Launch a galaxy")
+        print("  list / ls     - List available galaxies")
+        print("  help          - Show this help")
+        print("  exit          - Exit Douglas")
+
+    else:
+        print(f"❓ Unknown command: {cmd}")
+        print("💡 Type 'help' for available commands")
+
+
+def main():
+    """Main Douglas application loop"""
+    # Set up signal handler for Ctrl+C
+    signal.signal(signal.SIGINT, signal_handler)
+
+    print("🌌 Welcome to Douglas!")
+    print("   The AI-First App Runner & Builder")
+    print("   Don't Panic - Your digital towel is ready.")
+    print()
+    print("💡 Type 'help' for commands or 'exit' to quit")
+
+    try:
+        while True:
+            user_input = input("douglas> ").strip()
+
+            if user_input.lower() == "exit":
+                print("🌌 Thanks for using Douglas. Don't forget your towel!")
+                break
+            elif user_input == "":
+                continue
+            else:
+                handle_command(user_input)
+
+    except EOFError:
+        # Handle Ctrl+D
+        print("\n🌌 Douglas signing off. Don't panic!")
+
+
+if __name__ == "__main__":
+    main()

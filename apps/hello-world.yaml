@@ -1,0 +1,3 @@
+name: "Hello World Galaxy"
+description: "A simple galaxy that prints a welcome message."
+action: "echo Hello, World!"
