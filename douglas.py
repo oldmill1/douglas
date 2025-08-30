@@ -10,6 +10,26 @@ import subprocess
 from pathlib import Path
 
 
+def load_env_file():
+    """Load environment variables from .env file"""
+    douglas_root = get_douglas_root()
+    env_file = douglas_root / ".env"
+
+    if not env_file.exists():
+        print("⚠️  No .env file found. Create one with your OPENAI_API_KEY")
+        return
+
+    try:
+        with open(env_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+    except Exception as e:
+        print(f"❌ Error loading .env file: {e}")
+
+
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully"""
     print("\n🌌 Douglas signing off. Don't panic!")
@@ -95,10 +115,12 @@ def handle_command(command):
 
     if cmd == "run":
         if len(parts) < 2:
-            print("❌ Usage: run <galaxy-name>")
+            print("❌ Usage: run <galaxy-name> [arguments...]")
             return
         galaxy_name = parts[1]
-        run_galaxy(galaxy_name)
+        # Join remaining parts as arguments for the galaxy
+        galaxy_args = " ".join(parts[2:]) if len(parts) > 2 else ""
+        run_galaxy(galaxy_name, galaxy_args)
 
     elif cmd == "list" or cmd == "ls":
         galaxies = list_galaxies()
@@ -108,6 +130,15 @@ def handle_command(command):
                 print(f"  • {galaxy}")
         else:
             print("📭 No galaxies found in apps/ directory")
+
+    elif cmd == "env":
+        # Debug command to check environment variables
+        api_key = os.environ.get('OPENAI_API_KEY', 'Not set')
+        model = os.environ.get('MODEL', 'Not set')
+        print(f"🔑 OPENAI_API_KEY: {'✅ Set' if api_key != 'Not set' else '❌ Not set'}")
+        print(f"🤖 MODEL: {model}")
+        if api_key != 'Not set':
+            print(f"🔍 Key preview: {api_key[:10]}...{api_key[-4:]}")
 
     elif cmd == "help":
         print("🤖 Douglas Commands:")
@@ -125,6 +156,9 @@ def main():
     """Main Douglas application loop"""
     # Set up signal handler for Ctrl+C
     signal.signal(signal.SIGINT, signal_handler)
+
+    # Load environment variables
+    load_env_file()
 
     print("🌌 Welcome to Douglas!")
     print("   The AI-First App Runner & Builder")

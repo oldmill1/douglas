@@ -1,0 +1,28 @@
+# apps/food-logger.yaml
+name: "Food Logger"
+description: "Accepts text descriptions of meals, stores them in a database, and uses an LLM to generate a CSV report."
+
+database:
+  models:
+    - name: "Entry"
+      type: "json"  # This model will store arbitrary JSON objects, perfect for unstructured LLM output.
+
+llm:
+  useLLM: true
+  provider: "openai"
+  model: "gpt-4o"
+  # openai_key: ${USER_API_KEY} # Douglas will handle this; it should not be hardcoded here.
+  prompt: |
+    You are a helpful nutritionist assistant. The user will provide a description of a meal they ate.
+    Your tasks are:
+    1. Analyze the user's input and extract structured information (e.g., food items, quantities, estimated calories, time of day).
+    2. This data will be saved to a database for later use.
+    3. When requested, you must generate a CSV report of ALL the meal entries in the database.
+    4. The CSV should have the following columns: id, timestamp, food_item, quantity, estimated_calories, notes.
+    5. You MUST output the full CSV content, and nothing else, when generating the report. Start with the header row.
+
+    The user's input is: {{user_input}}
+
+io:
+  accepts: text
+  returns: csv
