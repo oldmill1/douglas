@@ -6,21 +6,27 @@ import sys
 import signal
 import os
 import yaml
+import argparse
 from pathlib import Path
 from src.database import get_douglas_data_dir, initialize_database
 from src.cli import handle_command
 
+# Global quiet flag
+QUIET_MODE = False
+
 
 def startup_boot_sequence():
     """Startup Boot Sequence - Initialize databases for all galaxies"""
-    print("🚀 Running Startup Boot Sequence...")
+    if not QUIET_MODE:
+        print("🚀 Running Startup Boot Sequence...")
 
     # Get apps directory
     douglas_root = get_douglas_root()
     apps_dir = douglas_root / "apps"
 
     if not apps_dir.exists():
-        print(f"📁 No apps directory found at {apps_dir}")
+        if not QUIET_MODE:
+            print(f"📁 No apps directory found at {apps_dir}")
         return
 
     # Process each Galaxy YAML file
@@ -41,14 +47,16 @@ def startup_boot_sequence():
                     databases_initialized += 1
 
         except Exception as e:
-            print(f"⚠️  Error processing {galaxy_file.name}: {e}")
+            if not QUIET_MODE:
+                print(f"⚠️  Error processing {galaxy_file.name}: {e}")
 
-    if databases_initialized > 0:
-        print(f"✅ SBS Complete: {databases_initialized} database(s) ready")
-        data_dir = get_douglas_data_dir()
-        print(f"📂 Database location: {data_dir / 'databases'}")
-    else:
-        print("✅ SBS Complete: No databases required")
+    if not QUIET_MODE:
+        if databases_initialized > 0:
+            print(f"✅ SBS Complete: {databases_initialized} database(s) ready")
+            data_dir = get_douglas_data_dir()
+            print(f"📂 Database location: {data_dir / 'databases'}")
+        else:
+            print("✅ SBS Complete: No databases required")
 
 
 def load_env_file():
@@ -57,7 +65,8 @@ def load_env_file():
     env_file = douglas_root / ".env"
 
     if not env_file.exists():
-        print("⚠️  No .env file found. Create one with your OPENAI_API_KEY")
+        if not QUIET_MODE:
+            print("⚠️  No .env file found. Create one with your OPENAI_API_KEY")
         return
 
     try:
@@ -68,12 +77,14 @@ def load_env_file():
                     key, value = line.split('=', 1)
                     os.environ[key.strip()] = value.strip()
     except Exception as e:
-        print(f"❌ Error loading .env file: {e}")
+        if not QUIET_MODE:
+            print(f"❌ Error loading .env file: {e}")
 
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully"""
-    print("\n🌌 Douglas signing off. Don't panic!")
+    if not QUIET_MODE:
+        print("\n🌌 Douglas signing off. Don't panic!")
     sys.exit(0)
 
 
@@ -85,6 +96,16 @@ def get_douglas_root():
 
 def main():
     """Main Douglas application loop"""
+    global QUIET_MODE
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Douglas - AI-First App Runner & Builder")
+    parser.add_argument('--quiet', '-q', action='store_true',
+                        help='Run in quiet mode with minimal output')
+    args = parser.parse_args()
+
+    QUIET_MODE = args.quiet
+
     # Set up signal handler for Ctrl+C
     signal.signal(signal.SIGINT, signal_handler)
 
@@ -94,19 +115,21 @@ def main():
     # Run Startup Boot Sequence
     startup_boot_sequence()
 
-    print()
-    print("🌌 Welcome to Douglas!")
-    print("   The AI-First App Runner & Builder")
-    print("   Don't Panic - Your digital towel is ready.")
-    print()
-    print("💡 Type 'help' for commands or 'exit' to quit")
+    if not QUIET_MODE:
+        print()
+        print("🌌 Welcome to Douglas!")
+        print("   The AI-First App Runner & Builder")
+        print("   Don't Panic - Your digital towel is ready.")
+        print()
+        print("💡 Type 'help' for commands or 'exit' to quit")
 
     try:
         while True:
             user_input = input("douglas> ").strip()
 
             if user_input.lower() == "exit":
-                print("🌌 Thanks for using Douglas. Don't forget your towel!")
+                if not QUIET_MODE:
+                    print("🌌 Thanks for using Douglas. Don't forget your towel!")
                 break
             elif user_input == "":
                 continue
@@ -115,7 +138,8 @@ def main():
 
     except EOFError:
         # Handle Ctrl+D
-        print("\n🌌 Douglas signing off. Don't panic!")
+        if not QUIET_MODE:
+            print("\n🌌 Douglas signing off. Don't panic!")
 
 
 if __name__ == "__main__":

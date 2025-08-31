@@ -1,9 +1,16 @@
 """
 Galaxy operations for Douglas
 """
+import os
 import yaml
 import subprocess
 from pathlib import Path
+
+# Import OpenAI - we'll handle import errors gracefully
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 
 def get_douglas_root():
@@ -42,11 +49,53 @@ def load_galaxy(galaxy_name):
         return None
 
 
+def call_openai_api(prompt, user_input, model="gpt-4o"):
+    """Make a call to OpenAI API"""
+    if OpenAI is None:
+        return "❌ OpenAI library not installed. Run: pip install openai"
+
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        return "❌ OPENAI_API_KEY not set in environment variables"
+
+    try:
+        client = OpenAI(api_key=api_key)
+
+        # Replace {{user_input}} placeholder in the prompt
+        formatted_prompt = prompt.replace('{{user_input}}', user_input)
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": formatted_prompt},
+                {"role": "user", "content": user_input}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"❌ OpenAI API error: {str(e)}"
+
+
 def run_interactive_galaxy(galaxy_name, galaxy_config, initial_input=""):
     """Run a galaxy in interactive mode"""
     print(f"🌌 Entering {galaxy_config.get('name', galaxy_name)} interactive mode")
     print(f"💡 Type 'exit' to return to Douglas")
     print()
+
+    # Check if this galaxy uses LLM
+    use_llm = galaxy_config.get('llm', {}).get('useLLM', False)
+    llm_prompt = galaxy_config.get('llm', {}).get('prompt', '')
+    llm_model = galaxy_config.get('llm', {}).get('model', 'gpt-4o')
+
+    if use_llm:
+        if not llm_prompt:
+            print(f"❌ Galaxy {galaxy_name} has useLLM=true but no prompt defined")
+            return
+        print(f"🤖 Using {llm_model} for responses")
 
     # Display welcome message
     print(f"{galaxy_name}: Hello! How can I help you?")
@@ -54,7 +103,11 @@ def run_interactive_galaxy(galaxy_name, galaxy_config, initial_input=""):
     # If there was initial input, process it first
     if initial_input:
         print(f"{galaxy_name}> {initial_input}")
-        print(f"{galaxy_name}: {initial_input}")  # Echo for now
+        if use_llm:
+            response = call_openai_api(llm_prompt, initial_input, llm_model)
+            print(f"{galaxy_name}: {response}")
+        else:
+            print(f"{galaxy_name}: {initial_input}")  # Echo for non-LLM galaxies
 
     try:
         while True:
@@ -66,9 +119,12 @@ def run_interactive_galaxy(galaxy_name, galaxy_config, initial_input=""):
             elif user_input == "":
                 continue
             else:
-                # For now, just echo back the input
-                # TODO: This is where we'll implement LLM processing
-                print(f"{galaxy_name}: {user_input}")
+                if use_llm:
+                    response = call_openai_api(llm_prompt, user_input, llm_model)
+                    print(f"{galaxy_name}: {response}")
+                else:
+                    # For non-LLM galaxies, just echo back the input
+                    print(f"{galaxy_name}: {user_input}")
 
     except EOFError:
         # Handle Ctrl+D

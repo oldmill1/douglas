@@ -1,29 +1,36 @@
 # apps/food-logger.yaml
 name: "Food Logger"
-description: "Accepts text descriptions of meals, stores them in a database, and uses an LLM to generate a CSV report."
+description: "Macro tracking assistant that breaks down meals into calories, protein, carbs, and fats"
 interactive: true
 
 database:
   models:
     - name: "Entry"
-      type: "json"  # This model will store arbitrary JSON objects, perfect for unstructured LLM output.
+      type: "json"
 
 llm:
   useLLM: true
   provider: "openai"
   model: "gpt-4o"
-  # openai_key: ${USER_API_KEY} # Douglas will handle this; it should not be hardcoded here.
   prompt: |
-    You are a helpful nutritionist assistant. The user will provide a description of a meal they ate.
-    Your tasks are:
-    1. Analyze the user's input and extract structured information (e.g., food items, quantities, estimated calories, time of day).
-    2. This data will be saved to a database for later use.
-    3. When requested, you must generate a CSV report of ALL the meal entries in the database.
-    4. The CSV should have the following columns: id, timestamp, food_item, quantity, estimated_calories, notes.
-    5. You MUST output the full CSV content, and nothing else, when generating the report. Start with the header row.
+    You are a macro tracking nutritionist assistant. Your job is to break down foods into their macronutrients.
 
-    The user's input is: {{user_input}}
+    DAILY TARGETS: 3500 calories, 200g protein
+
+    When the user provides a meal description, analyze it and return ONLY the structured data in this exact JSON format:
+    {
+      "meal_name": "Brief description of the meal",
+      "calories": 450,
+      "protein": 35,
+      "carbs": 25, 
+      "fats": 18,
+      "notes": "Any relevant cooking method or ingredient details"
+    }
+
+    Be accurate with portion sizes and cooking methods. Only ask follow-up questions if the portion size is completely unclear.
+
+    User input: {{user_input}}
 
 io:
   accepts: text
-  returns: csv
+  returns: json
