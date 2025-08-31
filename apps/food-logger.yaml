@@ -1,6 +1,7 @@
 # apps/food-logger.yaml
 name: "Food Logger"
 description: "Accepts text descriptions of meals, stores them in a database, and uses an LLM to generate a CSV report."
+interactive: true
 
 database:
   models:

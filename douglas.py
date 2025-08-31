@@ -195,6 +195,42 @@ def load_galaxy(galaxy_name):
         return None
 
 
+def run_interactive_galaxy(galaxy_name, galaxy_config, initial_input=""):
+    """Run a galaxy in interactive mode"""
+    print(f"🌌 Entering {galaxy_config.get('name', galaxy_name)} interactive mode")
+    print(f"💡 Type 'exit' to return to Douglas")
+    print()
+
+    # Display welcome message
+    print(f"{galaxy_name}: Hello! How can I help you?")
+
+    # If there was initial input, process it first
+    if initial_input:
+        print(f"{galaxy_name}> {initial_input}")
+        print(f"{galaxy_name}: {initial_input}")  # Echo for now
+
+    try:
+        while True:
+            user_input = input(f"{galaxy_name}> ").strip()
+
+            if user_input.lower() == "exit":
+                print(f"👋 Exiting {galaxy_name}")
+                break
+            elif user_input == "":
+                continue
+            else:
+                # For now, just echo back the input
+                # TODO: This is where we'll implement LLM processing
+                print(f"{galaxy_name}: {user_input}")
+
+    except EOFError:
+        # Handle Ctrl+D
+        print(f"\n👋 Exiting {galaxy_name}")
+    except KeyboardInterrupt:
+        # Handle Ctrl+C within the galaxy
+        print(f"\n👋 Exiting {galaxy_name}")
+
+
 def run_galaxy(galaxy_name, galaxy_args=""):
     """Execute a Galaxy"""
     print(f"🚀 Launching Galaxy: {galaxy_name}")
@@ -209,6 +245,11 @@ def run_galaxy(galaxy_name, galaxy_args=""):
     # Display galaxy info
     if 'description' in galaxy_config:
         print(f"📝 {galaxy_config['description']}")
+
+    # Check if this is an interactive galaxy
+    if galaxy_config.get('interactive', False):
+        run_interactive_galaxy(galaxy_name, galaxy_config, galaxy_args)
+        return
 
     # Execute the action (for simple galaxies like hello-world)
     if 'action' in galaxy_config:
