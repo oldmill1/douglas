@@ -1,105 +1,34 @@
-# 🌌 Douglas - An AI-First App Runner & Builder
+# Douglas - AI App Runner
 
-*Don't Panic - Your digital towel is ready.*
+Build AI applications with YAML files. Each app gets its own database and can use GPT-4o.
 
-Douglas makes it easy to build and chain AI-powered workflows using your own
-OpenAI API key.
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.6+
-- OpenAI API key
-
-### Installation
-
-1. **Clone or download Douglas to your desired location:**
-   ```bash
-   mkdir -p ~/dev/douglas
-   cd ~/dev/douglas
-   # Add your douglas files here
-   ```
-
-2. **Set up your environment:**
-   ```bash
-   # Create .env file with your OpenAI API key
-   echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
-   echo "MODEL=gpt-4o" >> .env
-   ```
-
-3. **Install Douglas:**
-   ```bash
-   ./install.sh
-   ```
-
-4. **Start Douglas:**
-   ```bash
-   douglas
-   ```
-
-## 🌟 What are Galaxies?
-
-**Galaxies** are self-contained AI applications defined by `.yaml` files. Each Galaxy can have:
-
-- **🤖 One LLM**: Currently supports OpenAI's GPT-4o
-- **🗄️ One Database**: JSON-based storage for custom data models
-- **📝 A Prompt**: Core instructions for the AI
-- **🔗 Chainability**: Output from one Galaxy can feed into another
-
-## 📁 Project Structure
-
-```
-douglas/
-├── douglas.py          # Main executable
-├── install.sh         # Installation script
-├── requirements.txt   # Python dependencies
-├── .env              # Your API keys (create this)
-└── apps/             # Galaxy definitions
-    ├── hello-world.yaml
-    ├── food-logger.yaml
-    └── (your custom galaxies...)
-```
-
-## 🎮 Using Douglas
-
-### Basic Commands
+## Quick Start
 
 ```bash
-douglas> help              # Show available commands
-douglas> list              # List all available galaxies  
-douglas> run <galaxy>      # Execute a galaxy
-douglas> env               # Check environment variables
-douglas> exit              # Exit Douglas
+git clone <repo>
+cd douglas
+echo "OPENAI_API_KEY=your_key_here" > .env
+./scripts/install.sh
+douglas
 ```
 
-### Running Galaxies
+## What It Does
 
-```bash
-# Simple galaxy
-douglas> run hello-world
+Douglas runs "Galaxies" - AI applications defined in YAML files. Each galaxy can:
 
-# Galaxy with input
-douglas> run food-logger "I ate a turkey sandwich for lunch"
-```
+- Execute shell commands
+- Call OpenAI GPT-4o
+- Store data in SQLite
+- Run interactively
 
-## 📝 Creating Your Own Galaxies
+## Example: Food Tracker
 
-### Simple Galaxy (Shell Command)
+Create `apps/food-tracker.yaml`:
 
 ```yaml
-# apps/my-galaxy.yaml
-name: "My Custom Galaxy"
-description: "Does something amazing"
-action: "echo Hello from my galaxy!"
-```
-
-### AI-Powered Galaxy (LLM + Database)
-
-```yaml
-# apps/smart-galaxy.yaml
-name: "Smart Galaxy"
-description: "Uses AI to process data"
+name: "Food Tracker"
+description: "Track calories and macros"
+interactive: true
 
 database:
   models:
@@ -111,86 +40,115 @@ llm:
   provider: "openai"
   model: "gpt-4o"
   prompt: |
-    You are a helpful assistant.
-    Process this input: {{user_input}}
+    Break down this food into calories, protein, carbs, and fats.
+    Return JSON: {"calories": 450, "protein": 35, "carbs": 25, "fats": 18}
 
-io:
-  accepts: text
-  returns: csv
+    Food: {{user_input}}
 ```
 
-## 🔧 Development Status
-
-Douglas is currently in active development. Current features:
-
-- ✅ Basic Galaxy system
-- ✅ Shell command execution
-- ✅ Environment variable loading
-- ✅ YAML configuration parsing
-- 🚧 LLM integration (in progress)
-- 🚧 Database layer (in progress)
-- 🚧 Galaxy chaining (planned)
-
-## 🛠️ Development
-
-### Adding Dependencies
-
-Add to `requirements.txt`, then reinstall:
+Run it:
 
 ```bash
-./install.sh
+douglas> run food-tracker
+food-tracker> chicken breast 200g
+food-tracker: {"calories": 330, "protein": 62, "carbs": 0, "fats": 7}
+✅ Entry saved to database (ID: 1)
 ```
 
-### Updating Douglas
+## Database Integration
 
-After modifying `douglas.py`:
+Douglas automatically saves JSON responses to SQLite:
 
 ```bash
-./install.sh  # Redeploy the updated version
+# Check your data
+sqlite3 ~/.douglas/databases/food-tracker.db
+sqlite> SELECT * FROM entry ORDER BY created_at DESC LIMIT 3;
+
+id|created_at|content
+3|2025-01-15 10:30:45|{"calories": 330, "protein": 62, "carbs": 0, "fats": 7}
+2|2025-01-15 09:15:22|{"calories": 520, "protein": 45, "carbs": 35, "fats": 18}
+1|2025-01-15 08:45:10|{"calories": 280, "protein": 25, "carbs": 40, "fats": 8}
 ```
 
-### Uninstalling
+Query your data:
+
+```sql
+-- Total calories today
+SELECT SUM(json_extract(content, '$.calories')) as total_calories
+FROM entry
+WHERE date (created_at) = date ('now');
+
+-- High protein meals
+SELECT json_extract(content, '$.protein') as protein,
+       datetime(created_at) as time
+FROM entry
+WHERE json_extract(content, '$.protein') > 40;
+```
+
+## Simple Galaxy (No AI)
+
+```yaml
+name: "System Info"
+description: "Show system information"
+action: "uname -a && df -h"
+```
 
 ```bash
-sudo rm /usr/local/bin/douglas
+douglas> run system-info
+Linux hostname 5.4.0 x86_64
+Filesystem  Size  Used Avail Use% Mounted on
+/dev/sda1   20G   8.5G  11G  45% /
 ```
 
-## 📖 Examples
-
-### Food Logger Galaxy
-
-The included `food-logger` Galaxy demonstrates the full AI + Database workflow:
+## Commands
 
 ```bash
-douglas> run food-logger "I had oatmeal with berries for breakfast"
-# -> Processes with AI, stores in database, can generate CSV reports
+douglas> list          # Show all galaxies
+douglas> run <galaxy>  # Execute a galaxy
+douglas> env           # Check API keys
+douglas> help          # Show commands
+douglas> exit          # Exit
 ```
 
-## 🤝 Contributing
+## File Structure
 
-Douglas follows a step-by-step development approach:
+```
+douglas/
+├── apps/              # Your galaxy definitions
+│   ├── food-tracker.yaml
+│   └── system-info.yaml
+├── ~/.douglas/databases/  # SQLite databases (auto-created)
+├── douglas.py         # Main program
+└── .env              # Your API keys
+```
 
-1. Plan the feature
-2. Implement max 2 files at a time
-3. Test thoroughly
-4. Move to next step
+## Requirements
 
-## 📚 Philosophy
+- Python 3.6+
+- OpenAI API key (for LLM galaxies)
 
-Douglas embodies the principle that AI applications should be:
+## Architecture
 
-- **Composable**: Chain simple tools into complex workflows
-- **Declarative**: Define what you want, not how to build it
-- **Accessible**: Work from any terminal, anywhere
-- **Fun**: Don't Panic - building AI tools should be enjoyable!
+Each galaxy with a database gets:
 
-## 🌌 Hitchhiker's References
+- SQLite database at `~/.douglas/databases/galaxy-name.db`
+- Auto-created tables based on YAML models
+- JSON responses automatically saved
+- Full SQL query access to your data
 
-Douglas is named after Douglas Adams, creator of The Hitchhiker's Guide to the Galaxy. Throughout the codebase you'll
-find references to towels, the number 42, and the phrase "Don't Panic" - because building AI applications shouldn't be
-scary!
+No configuration needed. Define your app in YAML, Douglas handles the rest.
+
+## Development
+
+```bash
+# Reset all databases
+python3 scripts/nuke_databases.py
+
+# Run tests
+python3 tests/test_douglas.py
+python3 tests/test_database.py
+```
 
 ---
 
-*Remember: The answer to life, the universe, and everything might be 42, but the answer to your AI automation needs is
-Douglas.* 🌌
+Simple. Powerful. Works.

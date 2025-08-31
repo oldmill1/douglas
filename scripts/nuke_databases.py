@@ -5,9 +5,9 @@ Douglas Database Nuke Script
 WARNING: This will permanently delete all Douglas databases!
 Only use this for development/testing purposes.
 """
-import sys
-import yaml
 from pathlib import Path
+
+import yaml
 
 
 def get_douglas_root():
