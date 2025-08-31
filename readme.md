@@ -2,7 +2,7 @@
 
 Build AI applications with YAML files. Each app gets its own database and can use GPT-4o.
 
-## Quick Start
+## Get Started Right Now
 
 ```bash
 git clone <repo>
@@ -16,7 +16,6 @@ douglas
 
 Douglas runs "Galaxies" - AI applications defined in YAML files. Each galaxy can:
 
-- Execute shell commands
 - Call OpenAI GPT-4o
 - Store data in SQLite
 - Run interactively
@@ -76,11 +75,11 @@ Query your data:
 -- Total calories today
 SELECT SUM(json_extract(content, '$.calories')) as total_calories
 FROM entry
-WHERE date (created_at) = date ('now');
+WHERE date(created_at) = date('now');
 
 -- High protein meals
 SELECT json_extract(content, '$.protein') as protein,
-       datetime(created_at) as time
+       datetime(created_at)               as time
 FROM entry
 WHERE json_extract(content, '$.protein') > 40;
 ```
@@ -138,7 +137,7 @@ Each galaxy with a database gets:
 
 No configuration needed. Define your app in YAML, Douglas handles the rest.
 
-## Development
+## Dev
 
 ```bash
 # Reset all databases
@@ -148,7 +147,3 @@ python3 scripts/nuke_databases.py
 python3 tests/test_douglas.py
 python3 tests/test_database.py
 ```
-
----
-
-Simple. Powerful. Works.
