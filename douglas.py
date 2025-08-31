@@ -179,7 +179,6 @@ def main():
         print()
         print("🌌 Welcome to Douglas!")
         print("   The AI-First App Runner & Builder")
-        print("   Don't Panic - Your digital towel is ready.")
         print()
         print("💡 Type 'help' for commands or 'exit' to quit")
         if READLINE_AVAILABLE:

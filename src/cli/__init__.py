@@ -31,6 +31,14 @@ def handle_command(command):
         handle_env_command(args)
     elif cmd == "help":
         handle_help_command(args)
+    elif cmd == "clear" or cmd == "cls":
+        handle_clear_command()
     else:
         print(f"unknown command: {cmd}")
         print("type 'help' for available commands")
+
+
+def handle_clear_command():
+    """Clear the terminal screen"""
+    # Use ANSI escape sequence to clear screen and move cursor to top
+    print("\033[2J\033[H", end="")
