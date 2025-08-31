@@ -7,8 +7,8 @@ import signal
 import os
 import yaml
 from pathlib import Path
-from database import get_douglas_data_dir, initialize_database
-from cli import handle_command
+from src.database import get_douglas_data_dir, initialize_database
+from src.cli import handle_command
 
 
 def startup_boot_sequence():

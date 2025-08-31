@@ -2,7 +2,7 @@
 CLI operations for Douglas
 """
 import os
-from galaxy import list_galaxies, run_galaxy
+from src.galaxy import list_galaxies, run_galaxy
 
 
 def handle_command(command):

@@ -8,9 +8,9 @@ from pathlib import Path
 
 def get_douglas_root():
     """Get the root directory where Douglas is installed"""
-    # Get the directory where this script is located, then go up to find douglas.py
-    current_dir = Path(__file__).parent
-    return current_dir
+    # Get the directory where this script is located, then go up one level to find douglas.py
+    current_dir = Path(__file__).parent  # This is src/
+    return current_dir.parent  # This goes back to the Douglas root
 
 
 def list_galaxies():
