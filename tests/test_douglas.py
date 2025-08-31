@@ -2,10 +2,8 @@
 """
 Integration tests for Douglas
 """
-import unittest
 import subprocess
-import time
-import threading
+import unittest
 from pathlib import Path
 
 
