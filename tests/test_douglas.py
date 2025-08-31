@@ -2,10 +2,9 @@
 """
 Integration tests for Douglas
 """
+import json
 import subprocess
 import unittest
-import json
-import re
 from pathlib import Path
 
 
