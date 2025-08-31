@@ -3,6 +3,7 @@ Galaxy operations for Douglas
 """
 import os
 import yaml
+import json
 import subprocess
 from pathlib import Path
 
@@ -11,6 +12,9 @@ try:
     from openai import OpenAI
 except ImportError:
     OpenAI = None
+
+# Import our database functions
+from src.database import save_entry_to_database
 
 
 def get_douglas_root():
@@ -80,6 +84,39 @@ def call_openai_api(prompt, user_input, model="gpt-4o"):
         return f"❌ OpenAI API error: {str(e)}"
 
 
+def should_save_to_database(galaxy_config):
+    """Check if this galaxy should save LLM responses to database"""
+    # Convention: if galaxy has LLM + database, auto-save responses
+    has_llm = galaxy_config.get('llm', {}).get('useLLM', False)
+    has_database = 'database' in galaxy_config and 'models' in galaxy_config.get('database', {})
+
+    return has_llm and has_database
+
+
+def try_save_response_to_database(galaxy_name, response_text):
+    """Try to save LLM response to database if it's valid JSON"""
+    try:
+        # Try to parse as JSON first
+        json.loads(response_text)  # This will raise JSONDecodeError if invalid
+
+        # If we get here, it's valid JSON - save it
+        entry_id = save_entry_to_database(galaxy_name, response_text)
+
+        if entry_id and entry_id != False:
+            print(f"✅ Entry saved to database (ID: {entry_id})")
+            return True
+        else:
+            print("⚠️  Failed to save entry to database")
+            return False
+
+    except json.JSONDecodeError:
+        # Not valid JSON, don't save (this is fine - not all responses need saving)
+        return False
+    except Exception as e:
+        print(f"⚠️  Error saving to database: {e}")
+        return False
+
+
 def run_interactive_galaxy(galaxy_name, galaxy_config, initial_input=""):
     """Run a galaxy in interactive mode"""
     print(f"🌌 Entering {galaxy_config.get('name', galaxy_name)} interactive mode")
@@ -91,11 +128,16 @@ def run_interactive_galaxy(galaxy_name, galaxy_config, initial_input=""):
     llm_prompt = galaxy_config.get('llm', {}).get('prompt', '')
     llm_model = galaxy_config.get('llm', {}).get('model', 'gpt-4o')
 
+    # Check if we should auto-save responses to database
+    auto_save = should_save_to_database(galaxy_config)
+
     if use_llm:
         if not llm_prompt:
             print(f"❌ Galaxy {galaxy_name} has useLLM=true but no prompt defined")
             return
         print(f"🤖 Using {llm_model} for responses")
+        if auto_save:
+            print(f"💾 Auto-saving responses to database")
 
     # Display welcome message
     print(f"{galaxy_name}: Hello! How can I help you?")
@@ -106,6 +148,10 @@ def run_interactive_galaxy(galaxy_name, galaxy_config, initial_input=""):
         if use_llm:
             response = call_openai_api(llm_prompt, initial_input, llm_model)
             print(f"{galaxy_name}: {response}")
+
+            # Try to save to database if configured
+            if auto_save:
+                try_save_response_to_database(galaxy_name, response)
         else:
             print(f"{galaxy_name}: {initial_input}")  # Echo for non-LLM galaxies
 
@@ -122,6 +168,10 @@ def run_interactive_galaxy(galaxy_name, galaxy_config, initial_input=""):
                 if use_llm:
                     response = call_openai_api(llm_prompt, user_input, llm_model)
                     print(f"{galaxy_name}: {response}")
+
+                    # Try to save to database if configured
+                    if auto_save:
+                        try_save_response_to_database(galaxy_name, response)
                 else:
                     # For non-LLM galaxies, just echo back the input
                     print(f"{galaxy_name}: {user_input}")
