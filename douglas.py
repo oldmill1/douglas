@@ -11,8 +11,65 @@ from pathlib import Path
 from src.database import get_douglas_data_dir, initialize_database
 from src.cli import handle_command
 
+# Import readline for command history and line editing
+try:
+    import readline
+
+    READLINE_AVAILABLE = True
+except ImportError:
+    READLINE_AVAILABLE = False
+
 # Global quiet flag
 QUIET_MODE = False
+
+
+def setup_readline():
+    """Setup readline for command history and line editing"""
+    if not READLINE_AVAILABLE:
+        if not QUIET_MODE:
+            print("⚠️  Readline not available - no command history")
+        return
+
+    # Set up history file
+    douglas_data_dir = get_douglas_data_dir()
+    history_file = douglas_data_dir / "command_history"
+
+    # Create data directory if it doesn't exist
+    douglas_data_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load existing history
+    if history_file.exists():
+        try:
+            readline.read_history_file(str(history_file))
+        except Exception:
+            pass  # Ignore errors loading history
+
+    # Set history length
+    readline.set_history_length(1000)
+
+    # Set up tab completion for Douglas commands
+    def douglas_completer(text, state):
+        """Tab completion for Douglas commands"""
+        commands = ['run', 'browse', 'list', 'db', 'env', 'help', 'exit']
+        matches = [cmd for cmd in commands if cmd.startswith(text)]
+        try:
+            return matches[state]
+        except IndexError:
+            return None
+
+    readline.set_completer(douglas_completer)
+    readline.parse_and_bind('tab: complete')
+
+    return history_file
+
+
+def save_readline_history(history_file):
+    """Save command history when exiting"""
+    if READLINE_AVAILABLE and history_file:
+        try:
+            readline.write_history_file(str(history_file))
+        except Exception:
+            pass  # Ignore errors saving history
 
 
 def startup_boot_sequence():
@@ -112,6 +169,9 @@ def main():
     # Load environment variables
     load_env_file()
 
+    # Set up readline for command history and tab completion
+    history_file = setup_readline()
+
     # Run Startup Boot Sequence
     startup_boot_sequence()
 
@@ -122,10 +182,18 @@ def main():
         print("   Don't Panic - Your digital towel is ready.")
         print()
         print("💡 Type 'help' for commands or 'exit' to quit")
+        if READLINE_AVAILABLE:
+            print("🔄 Command history enabled (↑/↓ arrows work)")
 
     try:
         while True:
-            user_input = input("douglas> ").strip()
+            try:
+                user_input = input("douglas> ").strip()
+            except EOFError:
+                # Handle Ctrl+D
+                if not QUIET_MODE:
+                    print("\n🌌 Douglas signing off. Don't panic!")
+                break
 
             if user_input.lower() == "exit":
                 if not QUIET_MODE:
@@ -136,10 +204,13 @@ def main():
             else:
                 handle_command(user_input)
 
-    except EOFError:
-        # Handle Ctrl+D
+    except KeyboardInterrupt:
+        # Handle Ctrl+C
         if not QUIET_MODE:
             print("\n🌌 Douglas signing off. Don't panic!")
+    finally:
+        # Save command history
+        save_readline_history(history_file)
 
 
 if __name__ == "__main__":
