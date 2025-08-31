@@ -7,7 +7,131 @@ import signal
 import os
 import yaml
 import subprocess
+import sqlite3
 from pathlib import Path
+
+
+def get_douglas_data_dir():
+    """Get the platform-specific Douglas data directory"""
+    home = Path.home()
+
+    # Use platform-specific data directory conventions
+    if os.name == 'nt':  # Windows
+        data_dir = home / "AppData" / "Local" / "douglas"
+    else:  # macOS and Linux
+        data_dir = home / ".douglas"
+
+    return data_dir
+
+
+def get_database_dir():
+    """Get the databases directory, creating it if needed"""
+    db_dir = get_douglas_data_dir() / "databases"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    return db_dir
+
+
+def get_database_path(galaxy_name):
+    """Get the database file path for a specific galaxy"""
+    db_dir = get_database_dir()
+    return db_dir / f"{galaxy_name}.db"
+
+
+def initialize_database(galaxy_name, models):
+    """Initialize SQLite database for a galaxy with its models"""
+    db_path = get_database_path(galaxy_name)
+
+    try:
+        # Connect to SQLite database (creates file if it doesn't exist)
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Initialize each model as a table
+        for model in models:
+            model_name = model.get('name', '').lower()
+            model_type = model.get('type', 'json')
+
+            if not model_name:
+                continue
+
+            # Check if table exists
+            cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name=?
+            """, (model_name,))
+
+            if cursor.fetchone() is None:
+                # Table doesn't exist, create it
+                if model_type == 'json':
+                    create_sql = f"""
+                    CREATE TABLE {model_name} (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        content TEXT NOT NULL
+                    )
+                    """
+                else:
+                    # Future: handle other model types
+                    create_sql = f"""
+                    CREATE TABLE {model_name} (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        data TEXT NOT NULL
+                    )
+                    """
+
+                cursor.execute(create_sql)
+                print(f"📊 Created table '{model_name}' in {galaxy_name}.db")
+
+        # Commit and close
+        conn.commit()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        print(f"❌ Database initialization error for {galaxy_name}: {e}")
+        return False
+
+
+def startup_boot_sequence():
+    """Startup Boot Sequence - Initialize databases for all galaxies"""
+    print("🚀 Running Startup Boot Sequence...")
+
+    # Get apps directory
+    douglas_root = get_douglas_root()
+    apps_dir = douglas_root / "apps"
+
+    if not apps_dir.exists():
+        print(f"📁 No apps directory found at {apps_dir}")
+        return
+
+    # Process each Galaxy YAML file
+    galaxy_files = list(apps_dir.glob("*.yaml"))
+    databases_initialized = 0
+
+    for galaxy_file in galaxy_files:
+        galaxy_name = galaxy_file.stem
+
+        try:
+            with open(galaxy_file, 'r') as f:
+                galaxy_config = yaml.safe_load(f)
+
+            # Check if galaxy defines a database
+            if 'database' in galaxy_config and 'models' in galaxy_config['database']:
+                models = galaxy_config['database']['models']
+                if initialize_database(galaxy_name, models):
+                    databases_initialized += 1
+
+        except Exception as e:
+            print(f"⚠️  Error processing {galaxy_file.name}: {e}")
+
+    if databases_initialized > 0:
+        print(f"✅ SBS Complete: {databases_initialized} database(s) ready")
+        data_dir = get_douglas_data_dir()
+        print(f"📂 Database location: {data_dir / 'databases'}")
+    else:
+        print("✅ SBS Complete: No databases required")
 
 
 def load_env_file():
@@ -168,6 +292,10 @@ def main():
     # Load environment variables
     load_env_file()
 
+    # Run Startup Boot Sequence
+    startup_boot_sequence()
+
+    print()
     print("🌌 Welcome to Douglas!")
     print("   The AI-First App Runner & Builder")
     print("   Don't Panic - Your digital towel is ready.")
