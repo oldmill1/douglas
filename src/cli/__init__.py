@@ -7,6 +7,7 @@ from .run import handle_run_command
 from .list import handle_list_command
 from .env import handle_env_command
 from .help import handle_help_command
+from .browse import handle_browse_command
 
 
 def handle_command(command):
@@ -24,6 +25,8 @@ def handle_command(command):
         handle_list_command(args)
     elif cmd == "db":
         handle_db_command(args)
+    elif cmd == "browse":
+        handle_browse_command(args)
     elif cmd == "env":
         handle_env_command(args)
     elif cmd == "help":

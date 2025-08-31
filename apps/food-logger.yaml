@@ -17,7 +17,10 @@ llm:
 
     DAILY TARGETS: 3500 calories, 200g protein
 
-    When the user provides a meal description, analyze it and return ONLY the structured data in this exact JSON format:
+    When the user provides a meal description, analyze it and return ONLY the structured data in this exact JSON format.
+    
+    CRITICAL: Return ONLY raw JSON - no markdown formatting, no code blocks, no backticks, no extra text.
+
     {
       "meal_name": "Brief description of the meal",
       "calories": 450,

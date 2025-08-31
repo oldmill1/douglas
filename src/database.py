@@ -236,8 +236,12 @@ def delete_entry_from_database(galaxy_name, entry_id):
         print(f"❌ Database not found: {db_path}")
         return False
 
+    conn = None
     try:
-        conn = sqlite3.connect(db_path)
+        # Use a timeout to handle locked databases more gracefully
+        conn = sqlite3.connect(str(db_path), timeout=10.0)
+        # Enable WAL mode for better concurrent access
+        conn.execute("PRAGMA journal_mode=WAL")
         cursor = conn.cursor()
 
         # Delete the specific entry
@@ -245,13 +249,22 @@ def delete_entry_from_database(galaxy_name, entry_id):
 
         rows_deleted = cursor.rowcount
         conn.commit()
-        conn.close()
 
         return rows_deleted > 0
 
+    except sqlite3.OperationalError as e:
+        if "database is locked" in str(e).lower():
+            print(f"❌ Database is locked - please close any database browsers/editors")
+            print(f"   (like DB Browser for SQLite) and try again")
+        else:
+            print(f"❌ Database error: {e}")
+        return False
     except Exception as e:
         print(f"❌ Error deleting entry: {e}")
         return False
+    finally:
+        if conn:
+            conn.close()
 
 
 def delete_multiple_entries_from_database(galaxy_name, entry_ids):
@@ -267,8 +280,12 @@ def delete_multiple_entries_from_database(galaxy_name, entry_ids):
         print(f"❌ Database not found: {db_path}")
         return 0
 
+    conn = None
     try:
-        conn = sqlite3.connect(db_path)
+        # Use a timeout to handle locked databases more gracefully
+        conn = sqlite3.connect(str(db_path), timeout=10.0)
+        # Enable WAL mode for better concurrent access
+        conn.execute("PRAGMA journal_mode=WAL")
         cursor = conn.cursor()
 
         # Delete multiple entries using IN clause
@@ -277,10 +294,19 @@ def delete_multiple_entries_from_database(galaxy_name, entry_ids):
 
         rows_deleted = cursor.rowcount
         conn.commit()
-        conn.close()
 
         return rows_deleted
 
+    except sqlite3.OperationalError as e:
+        if "database is locked" in str(e).lower():
+            print(f"❌ Database is locked - please close any database browsers/editors")
+            print(f"   (like DB Browser for SQLite) and try again")
+        else:
+            print(f"❌ Database error: {e}")
+        return 0
     except Exception as e:
         print(f"❌ Error deleting entries: {e}")
         return 0
+    finally:
+        if conn:
+            conn.close()
