@@ -6,7 +6,8 @@ import sys
 import signal
 import os
 import yaml
-import argparse
+import time
+import threading
 from pathlib import Path
 from src.database import get_douglas_data_dir, initialize_database
 from src.cli import handle_command
@@ -19,15 +20,10 @@ try:
 except ImportError:
     READLINE_AVAILABLE = False
 
-# Global quiet flag
-QUIET_MODE = False
-
 
 def setup_readline():
     """Setup readline for command history and line editing"""
     if not READLINE_AVAILABLE:
-        if not QUIET_MODE:
-            print("⚠️  Readline not available - no command history")
         return
 
     # Set up history file
@@ -72,27 +68,92 @@ def save_readline_history(history_file):
             pass  # Ignore errors saving history
 
 
+class SaucerAnimation:
+    """Terminal animation for database initialization"""
+
+    def __init__(self):
+        self.running = False
+        self.thread = None
+        self.databases_to_init = []
+        self.databases_completed = 0
+
+    def start(self, database_count):
+        """Start the saucer animation"""
+        if database_count == 0:
+            return
+
+        self.databases_to_init = ['🛸', '🛸'] if database_count >= 2 else ['🛸']
+        self.databases_completed = 0
+        self.running = True
+
+        # Hide cursor and display initial saucers
+        print('\033[?25l', end='', flush=True)  # Hide cursor
+        print(' '.join(self.databases_to_init), end='', flush=True)
+
+        # Start animation thread
+        self.thread = threading.Thread(target=self._animate)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def _animate(self):
+        """Animation loop - alternates between saucer and alien"""
+        animation_cycle = 0
+        while self.running:
+            time.sleep(0.5)
+            if not self.running:
+                break
+
+            # Move cursor back to start of line
+            print(f'\r', end='', flush=True)
+
+            # Create animated display
+            display = []
+            for i in range(len(self.databases_to_init)):
+                if i < self.databases_completed:
+                    display.append('  ')  # Completed databases are invisible
+                else:
+                    # Animate between saucer and alien
+                    if animation_cycle % 2 == 0:
+                        display.append('🛸')
+                    else:
+                        display.append('👽')
+
+            print(' '.join(display), end='', flush=True)
+            animation_cycle += 1
+
+    def complete_database(self):
+        """Mark one database as completed"""
+        self.databases_completed += 1
+        if self.databases_completed >= len(self.databases_to_init):
+            self.stop()
+
+    def stop(self):
+        """Stop the animation and clear the display"""
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=1)
+
+        # Clear the line and show cursor
+        print(f'\r{" " * 10}\r', end='', flush=True)  # Clear the line
+        print('\033[?25h', end='', flush=True)  # Show cursor
+
+
 def startup_boot_sequence():
-    """Startup Boot Sequence - Initialize databases for all galaxies"""
-    if not QUIET_MODE:
-        print("🚀 Running Startup Boot Sequence...")
+    """Startup Boot Sequence - Initialize databases for all galaxies with animation"""
 
     # Get apps directory
     douglas_root = get_douglas_root()
     apps_dir = douglas_root / "apps"
 
     if not apps_dir.exists():
-        if not QUIET_MODE:
-            print(f"📁 No apps directory found at {apps_dir}")
         return
 
-    # Process each Galaxy YAML file
+    # Process each Galaxy YAML file to count databases needed
     galaxy_files = list(apps_dir.glob("*.yaml"))
-    databases_initialized = 0
+    databases_needed = []
 
     for galaxy_file in galaxy_files:
         galaxy_name = galaxy_file.stem
-
         try:
             with open(galaxy_file, 'r') as f:
                 galaxy_config = yaml.safe_load(f)
@@ -100,20 +161,28 @@ def startup_boot_sequence():
             # Check if galaxy defines a database
             if 'database' in galaxy_config and 'models' in galaxy_config['database']:
                 models = galaxy_config['database']['models']
-                if initialize_database(galaxy_name, models):
-                    databases_initialized += 1
+                databases_needed.append((galaxy_name, models))
+        except Exception:
+            continue  # Silently skip problematic files
 
-        except Exception as e:
-            if not QUIET_MODE:
-                print(f"⚠️  Error processing {galaxy_file.name}: {e}")
+    if not databases_needed:
+        return
 
-    if not QUIET_MODE:
-        if databases_initialized > 0:
-            print(f"✅ SBS Complete: {databases_initialized} database(s) ready")
-            data_dir = get_douglas_data_dir()
-            print(f"📂 Database location: {data_dir / 'databases'}")
-        else:
-            print("✅ SBS Complete: No databases required")
+    # Start saucer animation
+    animation = SaucerAnimation()
+    animation.start(len(databases_needed))
+
+    # Initialize databases
+    for galaxy_name, models in databases_needed:
+        try:
+            if initialize_database(galaxy_name, models):
+                animation.complete_database()
+                time.sleep(0.3)  # Brief pause between completions
+        except Exception:
+            animation.complete_database()  # Complete even on error
+
+    # Ensure animation is stopped
+    animation.stop()
 
 
 def load_env_file():
@@ -122,8 +191,6 @@ def load_env_file():
     env_file = douglas_root / ".env"
 
     if not env_file.exists():
-        if not QUIET_MODE:
-            print("⚠️  No .env file found. Create one with your OPENAI_API_KEY")
         return
 
     try:
@@ -133,15 +200,13 @@ def load_env_file():
                 if line and not line.startswith('#') and '=' in line:
                     key, value = line.split('=', 1)
                     os.environ[key.strip()] = value.strip()
-    except Exception as e:
-        if not QUIET_MODE:
-            print(f"❌ Error loading .env file: {e}")
+    except Exception:
+        pass  # Silently handle env file errors
 
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully"""
-    if not QUIET_MODE:
-        print("\n🌌 Douglas signing off. Don't panic!")
+    print("\n🌌 Douglas signing off. Don't panic!")
     sys.exit(0)
 
 
@@ -153,15 +218,10 @@ def get_douglas_root():
 
 def main():
     """Main Douglas application loop"""
-    global QUIET_MODE
 
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Douglas - AI-First App Runner & Builder")
-    parser.add_argument('--quiet', '-q', action='store_true',
-                        help='Run in quiet mode with minimal output')
-    args = parser.parse_args()
-
-    QUIET_MODE = args.quiet
+    # ANSI color code for pastel purple (#BB7CD8)
+    PASTEL_PURPLE = '\033[38;2;187;124;216m'
+    RESET_COLOR = '\033[0m'
 
     # Set up signal handler for Ctrl+C
     signal.signal(signal.SIGINT, signal_handler)
@@ -172,31 +232,19 @@ def main():
     # Set up readline for command history and tab completion
     history_file = setup_readline()
 
-    # Run Startup Boot Sequence
+    # Run Startup Boot Sequence with animation
     startup_boot_sequence()
-
-    if not QUIET_MODE:
-        print()
-        print("🌌 Welcome to Douglas!")
-        print("   The AI-First App Runner & Builder")
-        print()
-        print("💡 Type 'help' for commands or 'exit' to quit")
-        if READLINE_AVAILABLE:
-            print("🔄 Command history enabled (↑/↓ arrows work)")
 
     try:
         while True:
             try:
-                user_input = input("douglas> ").strip()
+                user_input = input(f"{PASTEL_PURPLE}$d>{RESET_COLOR} ").strip()
             except EOFError:
-                # Handle Ctrl+D
-                if not QUIET_MODE:
-                    print("\n🌌 Douglas signing off. Don't panic!")
+                # Handle Ctrl+D - exit silently
                 break
 
             if user_input.lower() == "exit":
-                if not QUIET_MODE:
-                    print("🌌 Thanks for using Douglas. Don't forget your towel!")
+                # Exit silently without message
                 break
             elif user_input == "":
                 continue
@@ -205,8 +253,7 @@ def main():
 
     except KeyboardInterrupt:
         # Handle Ctrl+C
-        if not QUIET_MODE:
-            print("\n🌌 Douglas signing off. Don't panic!")
+        print("\n🌌 Douglas signing off. Don't panic!")
     finally:
         # Save command history
         save_readline_history(history_file)
